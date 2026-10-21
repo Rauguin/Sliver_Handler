@@ -1,0 +1,69 @@
+"No Qt translation found for English"
+"No Qt translation found for English"
+"No Qt translation found for English"
+"No Qt translation found for English"
+QLayout: Attempting to add QLayout "" to SidePanelWidget "", which already has a layout
+QPainter::begin: Paint device returned engine == 0, type: 2
+QPainter::setRenderHint: Painter must be active to set rendering hints
+QPainter::setCompositionMode: Painter not active
+QPainter::translate: Painter not active
+QPainter::setPen: Painter not active
+QPainter::setBrush: Painter not active
+QPainter::setBrush: Painter not active
+flameshot: info: Capture saved to clipboard.
+QLayout: Attempting to add QLayout "" to SidePanelWidget "", which already has a layout
+QPainter::begin: Paint device returned engine == 0, type: 2
+QPainter::setRenderHint: Painter must be active to set rendering hints
+QPainter::setCompositionMode: Painter not active
+QPainter::translate: Painter not active
+QPainter::setPen: Painter not active
+QPainter::setBrush: Painter not active
+QPainter::setBrush: Painter not active
+flameshot: info: Capture saved as /home/kali/Desktop/github/Sliver_Handler/Help.png
+qt.qpa.xcb: QXcbConnection: XCB error: 3 (BadWindow), sequence: 3699, resource id: 10985604, major code: 40 (TranslateCoords), minor code: 0
+QLayout: Attempting to add QLayout "" to SidePanelWidget "", which already has a layout
+QPainter::begin: Paint device returned engine == 0, type: 2
+QPainter::setRenderHint: Painter must be active to set rendering hints
+QPainter::setCompositionMode: Painter not active
+QPainter::translate: Painter not active
+QPainter::setPen: Painter not active
+QPainter::setBrush: Painter not active
+QPainter::setBrush: Painter not active
+flameshot: info: Capture saved as /home/kali/Desktop/github/Sliver_Handler/versions.png
+QLayout: Attempting to add QLayout "" to SidePanelWidget "", which already has a layout
+QPainter::begin: Paint device returned engine == 0, type: 2
+QPainter::setRenderHint: Painter must be active to set rendering hints
+QPainter::setCompositionMode: Painter not active
+QPainter::translate: Painter not active
+QPainter::setPen: Painter not active
+QPainter::setBrush: Painter not active
+QPainter::setBrush: Painter not active
+flameshot: info: Capture saved as /home/kali/Desktop/github/Sliver_Handler/New.png
+QLayout: Attempting to add QLayout "" to SidePanelWidget "", which already has a layout
+QPainter::begin: Paint device returned engine == 0, type: 2
+QPainter::setRenderHint: Painter must be active to set rendering hints
+QPainter::setCompositionMode: Painter not active
+QPainter::translate: Painter not active
+QPainter::setPen: Painter not active
+QPainter::setBrush: Painter not active
+QPainter::setBrush: Painter not active
+flameshot: info: Capture saved as /home/kali/Desktop/github/Sliver_Handler/Status.png
+qt.qpa.xcb: QXcbConnection: XCB error: 3 (BadWindow), sequence: 9859, resource id: 11038642, major code: 40 (TranslateCoords), minor code: 0
+QLayout: Attempting to add QLayout "" to SidePanelWidget "", which already has a layout
+QPainter::begin: Paint device returned engine == 0, type: 2
+QPainter::setRenderHint: Painter must be active to set rendering hints
+QPainter::setCompositionMode: Painter not active
+QPainter::translate: Painter not active
+QPainter::setPen: Painter not active
+QPainter::setBrush: Painter not active
+QPainter::setBrush: Painter not active
+flameshot: info: Capture saved as /home/kali/Desktop/github/Sliver_Handler/Client.png
+QLayout: Attempting to add QLayout "" to SidePanelWidget "", which already has a layout
+QPainter::begin: Paint device returned engine == 0, type: 2
+QPainter::setRenderHint: Painter must be active to set rendering hints
+QPainter::setCompositionMode: Painter not active
+QPainter::translate: Painter not active
+QPainter::setPen: Painter not active
+QPainter::setBrush: Painter not active
+QPainter::setBrush: Painter not active
+flameshot: info: Capture saved as /home/kali/Desktop/github/Sliver_Handler/Server.png

@@ -1,0 +1,66 @@
+# ============================================================================
+# Sliver C2 — server + client em containers separados
+#
+# Gerenciado pelo Sliver_Handler.py (cada sessao roda como um docker compose
+# project isolado: --project-name + --env-file proprios).
+#
+# Uso manual (sem o handler):
+#   cp .env.example .env && docker compose up -d --build server
+#   docker compose run --rm client
+# ============================================================================
+
+services:
+  server:
+    build:
+      context: ./server
+      args:
+        SLIVER_VERSION: ${SLIVER_VERSION}
+        SLIVER_SERVER_SHA256: ${SLIVER_SERVER_SHA256}
+    image: sliver-server:${SLIVER_VERSION}
+    hostname: sliver-server
+    platform: linux/amd64
+    environment:
+      OPERATOR_NAME: ${OPERATOR_NAME}
+      SERVER_HOST: ${SERVER_HOST}
+      OPERATOR_LPORT: ${OPERATOR_LPORT}
+    ports:
+      - "${OPERATOR_LPORT}:31337"
+      - "80:80"
+      - "443:443"
+      - "8888:8888"
+    volumes:
+      - sliver-data:/home/sliver/.sliver
+      - sliver-shared:/shared
+    networks:
+      - sliver-net
+    restart: unless-stopped
+
+  client:
+    build:
+      context: ./client
+      args:
+        SLIVER_VERSION: ${SLIVER_VERSION}
+        SLIVER_CLIENT_SHA256: ${SLIVER_CLIENT_SHA256}
+    image: sliver-client:${SLIVER_VERSION}
+    platform: linux/amd64
+    environment:
+      OPERATOR_NAME: ${OPERATOR_NAME}
+      SERVER_HOST: ${SERVER_HOST}
+    volumes:
+      - sliver-client-data:/home/sliver/.sliver-client
+      - sliver-shared:/shared
+    networks:
+      - sliver-net
+    depends_on:
+      - server
+    stdin_open: true
+    tty: true
+
+networks:
+  sliver-net:
+    driver: bridge
+
+volumes:
+  sliver-data:
+  sliver-client-data:
+  sliver-shared:
