@@ -10,8 +10,9 @@ Uso:
   Sliver_Handler.py                        # sem argumento: mostra esta ajuda
   Sliver_Handler.py new   <nome> [versao]  # cria sessao com versao (default: v1.5.41)
   Sliver_Handler.py up                     # builda (1x) e sobe a sessao ativa
-  Sliver_Handler.py client                 # console interativo do operador
-  Sliver_Handler.py server                 # shell no container do server
+  Sliver_Handler.py client                 # console do operador (sliver-client)
+  Sliver_Handler.py server                 # console do server ([server] sliver >)
+  Sliver_Handler.py shell                  # bash no container do server (debug)
   Sliver_Handler.py use   <nome>           # troca para outra sessao (para a anterior)
   Sliver_Handler.py list                   # lista todas as sessoes (* = ativa)
   Sliver_Handler.py stop                   # para a sessao ativa
@@ -295,19 +296,30 @@ def cmd_client(args):
                           "run", "--rm", "client"])
 
 
-def cmd_server(args):
-    name = require_active()
+def _exec_server(name, *cmd):
     if not session_running(name):
         warn("Server nao esta rodando. Subindo...")
         cmd_up([])
         print()
     env_file = str(session_path(name) / ".env")
-    info(f"Shell no server — sessao '{name}'")
     os.execvp("docker", ["docker", "compose",
                           "-f", str(COMPOSE_FILE),
                           "--project-name", project_name(name),
                           "--env-file", env_file,
-                          "exec", "server", "/bin/bash"])
+                          "exec", "server", *cmd])
+
+
+def cmd_server(args):
+    name = require_active()
+    info(f"Console do server — sessao '{name}' ([server] sliver >)")
+    info("Ctrl+D ou 'exit' para sair")
+    _exec_server(name, "/opt/sliver-server")
+
+
+def cmd_shell(args):
+    name = require_active()
+    info(f"Shell bash no server — sessao '{name}'")
+    _exec_server(name, "/bin/bash")
 
 
 def cmd_use(args):
@@ -534,6 +546,7 @@ COMMANDS = {
     "up": cmd_up, "start": cmd_up,
     "client": cmd_client, "console": cmd_client, "c": cmd_client,
     "server": cmd_server, "srv": cmd_server, "s": cmd_server,
+    "shell": cmd_shell, "bash": cmd_shell, "sh": cmd_shell,
     "use": cmd_use, "switch": cmd_use,
     "list": cmd_list, "ls": cmd_list,
     "stop": cmd_stop, "down": cmd_stop,

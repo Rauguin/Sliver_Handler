@@ -47,8 +47,9 @@ certificados, config de operador, banco e implantes gerados — **sem conflito**
 
 - **Integridade** — versões conhecidas são verificadas por SHA-256 durante o build;
   versões novas funcionam mas avisam que não há checksum cadastrado.
-- **Acesso ao server e ao client** — `client` abre o console do operador, `server`
-  abre um shell no container do server (debug, config, gerar operadores extras).
+- **Dois consoles** — `client` abre o console do operador (`sliver >`), `server`
+  abre o console do server (`[server] sliver >`) com comandos de admin como
+  `new-operator` e `multiplayer`. `shell` dá bash direto no container para debug.
 - **Python 3 stdlib** — sem dependências externas, só Docker.
 
 ## Como rodar
@@ -103,7 +104,7 @@ sliver > jobs
 
 <p align="center">
   <img src="Server.png" alt="Shell bash dentro do container do server" width="720">
-  <br><sub>Shell no container do server para debug, checar certs ou gerar operadores extras.</sub>
+  <br><sub><code>shell</code> — bash no container do server para debug e checar arquivos.</sub>
 </p>
 
 ## Comandos
@@ -118,7 +119,8 @@ sliver > jobs
 | `new <nome> [versao]` (`create`) | Cria sessão com versão do Sliver (default: `v1.5.41`) e sobe |
 | `up` (`start`) | Builda (1x) e sobe a sessão ativa |
 | `client` (`console`, `c`) | Console interativo do operador na sessão ativa |
-| `server` (`srv`, `s`) | Shell no container do server (debug, config) |
+| `server` (`srv`, `s`) | Console do server (`[server] sliver >` com `new-operator`, etc.) |
+| `shell` (`bash`, `sh`) | Bash no container do server (debug, checar certs) |
 | `use <nome>` (`switch`) | Troca para outra sessão (para a anterior, sobe a nova) |
 | `list` (`ls`) | Lista todas as sessões (`*` = ativa) com versão e estado |
 | `stop` (`down`) | Para os containers da sessão ativa (volumes preservados) |

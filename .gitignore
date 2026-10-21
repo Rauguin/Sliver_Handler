@@ -1,3 +1,31 @@
+# Python
 __pycache__/
 *.pyc
 *.pyo
+
+# Sessoes / dados de runtime (normalmente em ~/.sliver-handler/, mas previne se copiados aqui)
+sessions/
+*.env
+!docker/.env.example
+
+# Implantes / payloads gerados pelo Sliver
+*.exe
+*.elf
+*.dll
+*.bin
+*.shellcode
+
+# Configs de operador exportados
+*.cfg
+
+# Dumps e backups
+*.dump
+*.tar.gz
+*.bak
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
