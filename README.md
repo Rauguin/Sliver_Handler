@@ -50,6 +50,13 @@ certificados, config de operador, banco e implantes gerados — **sem conflito**
 - **Dois consoles** — `client` abre o console do operador (`sliver >`), `server`
   abre o console do server (`[server] sliver >`) com comandos de admin como
   `new-operator` e `multiplayer`. `shell` dá bash direto no container para debug.
+- **Operadores e acesso externo** — `operator` gera configs com IP auto-detectado ou
+  apontando para uma VPS/tunnel. `connect` usa o `.cfg` pra conectar via host network
+  sem instalar binário nativo. O server aceita qualquer rota (direto, VPN, VPS).
+- **Arquivos acessíveis** — o diretório `/shared` dentro do container é um bind mount
+  local (`~/.sliver-handler/sessions/<nome>/shared/`). Configs de operador, implantes
+  e qualquer arquivo salvo em `/shared/` aparecem na sua máquina. `grab` copia
+  arquivos de qualquer outro caminho do container.
 - **Python 3 stdlib** — sem dependências externas, só Docker.
 
 ## Como rodar
@@ -79,12 +86,69 @@ cd Sliver_Handler
 ./Sliver_Handler.py server
 ```
 
-No console do Sliver, comece um listener e gere um implante:
+### Operadores e acesso externo
+
+O `client` padrão conecta via rede Docker interna (hostname `sliver-server`). Para
+conectar **de fora** — da sua máquina, de outra na rede ou via VPS — gere um config
+com o IP de destino:
+
+```bash
+# Acesso local — IP auto-detectado (192.168.1.177)
+./Sliver_Handler.py operator raugi
+
+# Acesso via LAN — IP explicito
+./Sliver_Handler.py operator raugi --lhost 192.168.1.177
+
+# Acesso via VPS (ela tunela pro seu Kali)
+./Sliver_Handler.py operator raugi --lhost 55.55.55.55
+
+# Porta diferente (VPS redireciona 8443 -> 31337)
+./Sliver_Handler.py operator raugi --lhost 55.55.55.55 --lport 8443
+
+# Conecta usando o config gerado (via host network, sem Docker interno)
+./Sliver_Handler.py connect raugi_192.168.1.177.cfg
+
+# Lista configs disponiveis na sessao
+./Sliver_Handler.py connect
+```
+
+O `--lhost` é apenas o endereço que o client **usa pra conectar** — não é validado pelo
+server. O server aceita qualquer operador com certificado mTLS válido, independente da
+rota (direto, VPN, VPS, tunnel). Basta que a porta esteja acessível.
 
 ```
-sliver > mtls --lport 443
-sliver > generate --mtls sliver-server:443 --os windows --save /shared/implant.exe
-sliver > jobs
+ ┌─────────────────────────────────────────────────────────┐
+ │                      seu Kali (192.168.1.177)           │
+ │  ┌──────────────────────────────────────────────────┐   │
+ │  │ Docker                                           │   │
+ │  │  server (daemon 0.0.0.0:31337)  ◄─── client     │   │
+ │  │       │                          (rede Docker)   │   │
+ │  └───────┼──────────────────────────────────────────┘   │
+ │          │ porta 31337 publicada no host                 │
+ ├──────────┼──────────────────────────────────────────────┤
+ │          ▼                                              │
+ │   192.168.1.177:31337  ◄────  connect (host network)    │
+ │          │                                              │
+ └──────────┼──────────────────────────────────────────────┘
+            │ (ou via VPS / tunnel)
+            ▼
+    55.55.55.55:31337  ◄────  operador remoto
+```
+
+### Arquivos compartilhados
+
+O diretório `/shared` dentro do container é um **bind mount** para
+`~/.sliver-handler/sessions/<nome>/shared/` na sua máquina. Tudo que o server
+ou client salvar em `/shared/` aparece localmente — sem `docker cp`.
+
+```bash
+# No console do Sliver:
+[server] sliver > new-operator --name colega --lhost 192.168.1.177 --save /shared/colega.cfg
+[server] sliver > generate --mtls 192.168.1.177:443 --os windows --save /shared/implant.exe
+
+# Na sua maquina:
+./Sliver_Handler.py shared          # lista o que tem no shared/
+./Sliver_Handler.py grab /home/sliver/.sliver/outro.db .  # copia de QUALQUER lugar do container
 ```
 
 <p align="center">
@@ -121,6 +185,10 @@ sliver > jobs
 | `client` (`console`, `c`) | Console interativo do operador na sessão ativa |
 | `server` (`srv`, `s`) | Console do server (`[server] sliver >` com `new-operator`, etc.) |
 | `shell` (`bash`, `sh`) | Bash no container do server (debug, checar certs) |
+| `shared` (`files`) | Lista arquivos compartilhados da sessão (configs, implantes) |
+| `grab <path> [dest]` (`cp`) | Copia arquivo do container do server para a máquina |
+| `operator <op> [--lhost IP]` (`op`) | Gera config de operador para acesso externo (auto-detecta IP) |
+| `connect [cfg]` (`conn`) | Conecta com um `.cfg` específico via host network |
 | `use <nome>` (`switch`) | Troca para outra sessão (para a anterior, sobe a nova) |
 | `list` (`ls`) | Lista todas as sessões (`*` = ativa) com versão e estado |
 | `stop` (`down`) | Para os containers da sessão ativa (volumes preservados) |
@@ -150,9 +218,15 @@ sliver > jobs
    podem ser adicionadas em `~/.sliver-handler/versions.json`. O comando `versions` consulta
    a API do GitHub para listar todas as releases disponíveis.
 4. **Server entrypoint** — na primeira execução, descompacta os assets embutidos no binário
-   (`unpack`), gera o config do operador e sobe o daemon multiplayer. O client espera o
-   config aparecer em `/shared`, importa e conecta.
-5. **Uma sessão por vez** — ao trocar (`use`), a sessão atual para antes da nova subir,
+   (`unpack`), gera o config do operador padrão e sobe o daemon multiplayer. O client espera
+   o config aparecer em `/shared`, importa e conecta.
+5. **Bind mount `/shared`** — cada sessão tem um diretório local
+   (`~/.sliver-handler/sessions/<nome>/shared/`) montado em `/shared` nos containers.
+   Configs de operador, implantes e qualquer arquivo salvo lá aparecem na máquina host.
+6. **Operador + connect** — `operator` gera configs com IP externo (auto-detectado ou
+   via `--lhost`). `connect` roda o client Docker com `--network host`, importa o `.cfg`
+   e conecta pelo IP real — sem instalar binário nativo.
+7. **Uma sessão por vez** — ao trocar (`use`), a sessão atual para antes da nova subir,
    evitando conflito de portas.
 
 ## Portas / listeners C2
@@ -185,7 +259,8 @@ docker/
   ├── versions.json            versões extras (opcional)
   └── sessions/<nome>/
       ├── meta.json            nome, versão, timestamps
-      └── .env                 config do docker compose da sessão
+      ├── .env                 config do docker compose da sessão
+      └── shared/              bind mount do /shared (configs, implantes)
 ```
 
 ## Aviso

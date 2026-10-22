@@ -30,7 +30,7 @@ services:
       - "8888:8888"
     volumes:
       - sliver-data:/home/sliver/.sliver
-      - sliver-shared:/shared
+      - ${SHARED_DIR}:/shared
     networks:
       - sliver-net
     restart: unless-stopped
@@ -48,7 +48,7 @@ services:
       SERVER_HOST: ${SERVER_HOST}
     volumes:
       - sliver-client-data:/home/sliver/.sliver-client
-      - sliver-shared:/shared
+      - ${SHARED_DIR}:/shared
     networks:
       - sliver-net
     depends_on:
@@ -63,4 +63,3 @@ networks:
 volumes:
   sliver-data:
   sliver-client-data:
-  sliver-shared:

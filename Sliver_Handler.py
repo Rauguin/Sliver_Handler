@@ -13,6 +13,10 @@ Uso:
   Sliver_Handler.py client                 # console do operador (sliver-client)
   Sliver_Handler.py server                 # console do server ([server] sliver >)
   Sliver_Handler.py shell                  # bash no container do server (debug)
+  Sliver_Handler.py shared                 # lista arquivos compartilhados (cfg, implantes)
+  Sliver_Handler.py grab  <path> [dest]    # copia arquivo do container para a maquina
+  Sliver_Handler.py operator <op> [--lhost IP]  # gera config de operador (acesso externo)
+  Sliver_Handler.py connect  [cfg]         # conecta com .cfg especifico (via host network)
   Sliver_Handler.py use   <nome>           # troca para outra sessao (para a anterior)
   Sliver_Handler.py list                   # lista todas as sessoes (* = ativa)
   Sliver_Handler.py stop                   # para a sessao ativa
@@ -31,6 +35,7 @@ Dados das sessoes ficam em ~/.sliver-handler/ (fora do repo).
 import json
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import urllib.request
@@ -59,6 +64,18 @@ BUILTIN_VERSIONS = {
     },
 }
 DEFAULT_VERSION = "v1.5.41"
+
+
+# ---------------------------------------------------------- rede
+def detect_host_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------- caminhos
@@ -127,6 +144,16 @@ def set_active(name):
         ACTIVE_F.write_text(name)
 
 
+def ensure_shared_dir(name):
+    env = load_session_env(name)
+    if not env.get("SHARED_DIR"):
+        shared = session_path(name) / "shared"
+        shared.mkdir(exist_ok=True)
+        shared.chmod(0o777)
+        env_file = session_path(name) / ".env"
+        env_file.write_text(env_file.read_text().rstrip() + f"\nSHARED_DIR={shared}\n")
+
+
 def require_active():
     name = active_session()
     if not name:
@@ -136,6 +163,7 @@ def require_active():
         err(f"Sessao ativa '{name}' nao existe mais. Use 'list' e 'use <outra>'.")
         set_active(None)
         sys.exit(1)
+    ensure_shared_dir(name)
     return name
 
 
@@ -166,6 +194,9 @@ def generate_env(name, version, operator="neo"):
     vi = version_info(version)
     sp = session_path(name)
     sp.mkdir(parents=True, exist_ok=True)
+    shared = sp / "shared"
+    shared.mkdir(exist_ok=True)
+    shared.chmod(0o777)
     lines = [
         f"# Sessao: {name} | Sliver {version}",
         f"SLIVER_VERSION={version}",
@@ -174,6 +205,7 @@ def generate_env(name, version, operator="neo"):
         f"OPERATOR_NAME={operator}",
         f"SERVER_HOST=sliver-server",
         f"OPERATOR_LPORT=31337",
+        f"SHARED_DIR={shared}",
     ]
     (sp / ".env").write_text("\n".join(lines) + "\n")
 
@@ -322,6 +354,141 @@ def cmd_shell(args):
     _exec_server(name, "/bin/bash")
 
 
+def cmd_grab(args):
+    if not args:
+        err("uso: Sliver_Handler.py grab <caminho-no-container> [destino-local]")
+        err("  ex: grab /home/sliver/.sliver/implant.exe")
+        err("  ex: grab /home/sliver/.sliver/implant.exe ./output/")
+        err("")
+        err("Dica: arquivos salvos em /shared/ dentro do container ja aparecem")
+        err(f"      localmente em ~/.sliver-handler/sessions/<sessao>/shared/")
+        sys.exit(1)
+    name = require_active()
+    src = args[0]
+    dest = args[1] if len(args) > 1 else "."
+    info(f"Copiando server:{src} -> {dest}")
+    env_file = str(session_path(name) / ".env")
+    r = subprocess.run(["docker", "compose",
+                        "-f", str(COMPOSE_FILE),
+                        "--project-name", project_name(name),
+                        "--env-file", env_file,
+                        "cp", f"server:{src}", dest])
+    if r.returncode != 0:
+        err("Falha ao copiar. O arquivo existe no container?")
+        sys.exit(1)
+    info("Copiado.")
+
+
+def cmd_shared(args):
+    name = require_active()
+    shared = session_path(name) / "shared"
+    if not shared.exists():
+        shared.mkdir(exist_ok=True)
+        shared.chmod(0o777)
+    files = sorted(shared.iterdir()) if shared.exists() else []
+    print(f"\n{B}Arquivos compartilhados — sessao '{name}'{R}")
+    print(f"  Caminho: {shared}\n")
+    if files:
+        for f in files:
+            size = f.stat().st_size
+            if size > 1024 * 1024:
+                sz = f"{size / (1024*1024):.1f}M"
+            elif size > 1024:
+                sz = f"{size / 1024:.1f}K"
+            else:
+                sz = f"{size}B"
+            print(f"  {CYN}{f.name:<30}{R} {sz:>8}")
+    else:
+        print(f"  (vazio)")
+    print(f"\n  Dentro do container, salve em /shared/ para acessar aqui.")
+    print(f"  Ex: new-operator --save /shared/operador.cfg")
+    print(f"      generate --save /shared/implant.exe\n")
+
+
+def cmd_operator(args):
+    if not args:
+        ip = detect_host_ip()
+        hint = f" (detectado: {ip})" if ip else ""
+        err("uso: Sliver_Handler.py operator <nome> [--lhost IP] [--lport PORTA]")
+        err(f"     --lhost: IP que o client usara para conectar{hint}")
+        err(f"     --lport: porta do operador (default: 31337)")
+        err("")
+        err("  ex: operator raugi --lhost 192.168.1.177")
+        sys.exit(1)
+    name = require_active()
+    op_name = args[0]
+
+    lhost = detect_host_ip() or "127.0.0.1"
+    lport = "31337"
+    i = 1
+    while i < len(args):
+        if args[i] == "--lhost" and i + 1 < len(args):
+            lhost = args[i + 1]; i += 2
+        elif args[i] == "--lport" and i + 1 < len(args):
+            lport = args[i + 1]; i += 2
+        else:
+            i += 1
+
+    cfg_name = f"{op_name}_{lhost}.cfg"
+    info(f"Gerando config: operador={CYN}{op_name}{R}  lhost={CYN}{lhost}{R}  lport={CYN}{lport}{R}")
+
+    env_file = str(session_path(name) / ".env")
+    r = subprocess.run(["docker", "compose",
+                        "-f", str(COMPOSE_FILE),
+                        "--project-name", project_name(name),
+                        "--env-file", env_file,
+                        "exec", "server",
+                        "/opt/sliver-server", "operator",
+                        "--name", op_name,
+                        "--lhost", lhost,
+                        "--lport", lport,
+                        "--save", f"/shared/{cfg_name}"])
+    if r.returncode != 0:
+        err("Falha ao gerar config. O server esta rodando?")
+        sys.exit(1)
+    shared = session_path(name) / "shared"
+    print()
+    info(f"Config salvo em: {shared / cfg_name}")
+    info(f"Conecte com:  {B}Sliver_Handler.py connect {cfg_name}{R}")
+
+
+def cmd_connect(args):
+    name = require_active()
+    shared = session_path(name) / "shared"
+    cfgs = sorted(shared.glob("*.cfg")) if shared.exists() else []
+
+    if not args:
+        if not cfgs:
+            err("Nenhum .cfg encontrado. Gere com: Sliver_Handler.py operator <nome> --lhost <IP>")
+            sys.exit(1)
+        print(f"\n{B}Configs disponiveis — sessao '{name}'{R}\n")
+        for c in cfgs:
+            print(f"  {CYN}{c.name}{R}")
+        print(f"\n  Uso: Sliver_Handler.py connect <arquivo.cfg>\n")
+        return
+
+    cfg = args[0]
+    cfg_path = shared / cfg
+    if not cfg_path.exists():
+        err(f"Config nao encontrado: {cfg_path}")
+        if cfgs:
+            info("Disponiveis: " + ", ".join(c.name for c in cfgs))
+        sys.exit(1)
+
+    env = load_session_env(name)
+    version = env.get("SLIVER_VERSION", DEFAULT_VERSION)
+    info(f"Conectando com {CYN}{cfg}{R} via host network...")
+    os.execvp("docker", [
+        "docker", "run", "-it", "--rm",
+        "--network", "host",
+        "-v", f"{shared}:/shared",
+        f"sliver-client:{version}",
+        "/bin/bash", "-c",
+        f"/usr/local/bin/sliver-client import /shared/{cfg} 2>/dev/null; "
+        f"/usr/local/bin/sliver-client",
+    ])
+
+
 def cmd_use(args):
     if not args:
         err("uso: Sliver_Handler.py use <nome>")
@@ -361,6 +528,7 @@ def cmd_list(args):
     print(f"   {'NOME':<20}{'VERSAO':<14}{'ESTADO':<14}{'CRIADA':<20}")
     print(f"   {'-'*18:<20}{'-'*12:<14}{'-'*12:<14}{'-'*18:<20}")
     for n in names:
+        ensure_shared_dir(n)
         meta = read_meta(n)
         env = load_session_env(n)
         version = env.get("SLIVER_VERSION", meta.get("version", "?"))
@@ -547,6 +715,10 @@ COMMANDS = {
     "client": cmd_client, "console": cmd_client, "c": cmd_client,
     "server": cmd_server, "srv": cmd_server, "s": cmd_server,
     "shell": cmd_shell, "bash": cmd_shell, "sh": cmd_shell,
+    "grab": cmd_grab, "cp": cmd_grab,
+    "shared": cmd_shared, "files": cmd_shared,
+    "operator": cmd_operator, "op": cmd_operator,
+    "connect": cmd_connect, "conn": cmd_connect,
     "use": cmd_use, "switch": cmd_use,
     "list": cmd_list, "ls": cmd_list,
     "stop": cmd_stop, "down": cmd_stop,
